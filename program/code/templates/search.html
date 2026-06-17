@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>검색 및 탐색 — TXT Line Search DB</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Sidebar Panel -->
+        <div class="side-panel">
+            <a href="/" class="home-button" title="홈으로 이동">
+                <span class="home-button-icon">🏠</span>
+                <span>Home</span>
+            </a>
+        </div>
+
+        <!-- Main Split Area -->
+        <div class="main-split">
+            <!-- Left Pane: Search & Results -->
+            <div class="left-pane" id="left-pane">
+                <div class="search-bar-container">
+                    <h2 class="search-title">데이터셋: {{ dataset_name }}</h2>
+                    <div class="search-bar">
+                        <div class="search-input-wrapper">
+                            <input type="text" id="search-input" class="search-input" placeholder="검색식 입력 (예: (가나다and라마)or사아)">
+                        </div>
+                        <button type="button" id="search-button" class="search-btn" disabled>검색</button>
+                    </div>
+                </div>
+                <div class="results" id="results">
+                    <div class="empty-result">검색식을 입력하고 검색 버튼을 누르세요.</div>
+                </div>
+            </div>
+
+            <!-- Resizer -->
+            <div class="resizer" id="resizer"></div>
+
+            <!-- Right Pane: Original File Viewer -->
+            <div class="right-pane" id="right-pane">
+                <div class="spinner" id="file-spinner" style="margin: 100px auto 0;"></div>
+                <div class="file-viewer" id="file-viewer" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pass backend variables to JS -->
+    <script>
+        const datasetName = "{{ dataset_name }}";
+    </script>
+    <script src="/static/app.js"></script>
+</body>
+</html>

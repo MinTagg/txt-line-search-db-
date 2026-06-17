@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 업로드 — TXT Line Search DB</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="upload-container">
+        <div class="upload-card">
+            <!-- Initial View -->
+            <div id="upload-form-view">
+                <h2 class="card-title">새 텍스트 파일 업로드</h2>
+                <div class="drop-zone" id="drop-zone">
+                    <span class="drop-zone-icon">📁</span>
+                    <p class="drop-zone-text">여기에 txt 파일을 드래그 앤 드롭하거나 클릭하여 파일을 선택하세요.</p>
+                    <input type="file" id="file-input" class="file-input" accept=".txt">
+                    <div id="file-info" class="file-info"></div>
+                </div>
+                <div class="button-group">
+                    <button type="button" class="btn btn-primary" id="btn-upload" disabled>업로드 시작</button>
+                    <a href="/" class="btn btn-secondary">취소</a>
+                </div>
+            </div>
+
+            <!-- Loading View -->
+            <div id="loading-view" class="status-container">
+                <div class="spinner"></div>
+                <p class="status-text" id="status-text">파일을 업로드하는 중입니다...</p>
+            </div>
+
+            <!-- Success View -->
+            <div id="success-view" class="success-container">
+                <span class="success-icon">✓</span>
+                <h3 class="success-title" id="success-title">업로드 완료!</h3>
+                <p class="success-details" id="success-details">데이터 처리가 완료되었습니다.</p>
+                <div class="button-group">
+                    <a href="/" class="btn btn-primary">완료</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const btnUpload = document.getElementById('btn-upload');
+        const uploadFormView = document.getElementById('upload-form-view');
+        const loadingView = document.getElementById('loading-view');
+        const successView = document.getElementById('success-view');
+        const statusText = document.getElementById('status-text');
+        const successDetails = document.getElementById('success-details');
+
+        let selectedFile = null;
+
+        // Drop zone interaction
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length > 0) {
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (fileInput.files.length > 0) {
+                handleFileSelect(fileInput.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            if (!file.name.toLowerCase().endsWith('.txt')) {
+                alert('텍스트(.txt) 파일만 업로드할 수 있습니다.');
+                return;
+            }
+            
+            selectedFile = file;
+            fileInfo.textContent = `선택된 파일: ${file.name} (${formatBytes(file.size)})`;
+            fileInfo.style.display = 'block';
+            btnUpload.disabled = false;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Upload action
+        btnUpload.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // Switch to loading
+            uploadFormView.style.display = 'none';
+            loadingView.style.display = 'block';
+            statusText.textContent = '데이터 처리 중... 잠시만 기다려주세요.';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (response.ok && data.ok) {
+                    loadingView.style.display = 'none';
+                    successView.style.display = 'block';
+                    successDetails.textContent = `데이터셋 이름: ${data.dataset_name}\n총 ${data.line_count.toLocaleString()}줄의 데이터가 파싱되어 SQLite DB로 구축되었습니다.`;
+                } else {
+                    throw new Error(data.error || '업로드 처리 중 오류 발생');
+                }
+            } catch (err) {
+                alert(`오류: ${err.message}`);
+                // Go back to form
+                loadingView.style.display = 'none';
+                uploadFormView.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

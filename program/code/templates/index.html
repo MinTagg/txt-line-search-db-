@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TXT Line Search DB</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="welcome-container">
+        <!-- Welcome View -->
+        <div class="welcome-card" id="welcome-view">
+            <h1 class="welcome-title">TXT Line Search DB</h1>
+            <p class="welcome-subtitle">텍스트 파일을 줄 단위로 저장하고 복잡한 검색식으로 한눈에 탐색하세요.</p>
+            <div class="button-group">
+                <a href="/upload" class="btn btn-primary">
+                    <span>새 데이터 업로드</span>
+                </a>
+                <button type="button" class="btn btn-secondary" id="btn-existing">
+                    <span>기존 데이터 이용</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Dataset List View -->
+        <div class="welcome-card" id="dataset-view" style="display: none;">
+            <h1 class="card-title">기존 데이터 선택</h1>
+            <div id="datasets-container" class="dataset-list">
+                <!-- Datasets dynamically loaded here -->
+                <div class="spinner" id="dataset-spinner" style="display: none;"></div>
+                <div id="datasets-list-content"></div>
+            </div>
+            <div class="button-group" style="margin-top: 30px;">
+                <button type="button" class="btn btn-secondary" id="btn-back">
+                    <span>뒤로 가기</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const welcomeView = document.getElementById('welcome-view');
+        const datasetView = document.getElementById('dataset-view');
+        const btnExisting = document.getElementById('btn-existing');
+        const btnBack = document.getElementById('btn-back');
+        const datasetsContainer = document.getElementById('datasets-list-content');
+        const datasetSpinner = document.getElementById('dataset-spinner');
+
+        btnExisting.addEventListener('click', async () => {
+            // Switch view
+            welcomeView.style.display = 'none';
+            datasetView.style.display = 'block';
+            datasetView.style.animation = 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+
+            // Fetch datasets
+            datasetsContainer.innerHTML = '';
+            datasetSpinner.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/datasets');
+                const data = await response.json();
+                
+                datasetSpinner.style.display = 'none';
+
+                if (data.ok && data.datasets && data.datasets.length > 0) {
+                    data.datasets.forEach(dataset => {
+                        const item = document.createElement('div');
+                        item.className = 'dataset-item';
+                        item.innerHTML = `
+                            <span class="dataset-name">${escapeHtml(dataset)}</span>
+                            <span class="dataset-arrow">→</span>
+                        `;
+                        item.addEventListener('click', () => {
+                            window.location.href = `/search/${encodeURIComponent(dataset)}`;
+                        });
+                        datasetsContainer.appendChild(item);
+                    });
+                } else {
+                    datasetsContainer.innerHTML = '<div class="empty-datasets">등록된 데이터셋이 없습니다.</div>';
+                }
+            } catch (err) {
+                datasetSpinner.style.display = 'none';
+                datasetsContainer.innerHTML = '<div class="empty-datasets" style="color: #ef4444;">데이터 목록을 불러오지 못했습니다.</div>';
+                console.error(err);
+            }
+        });
+
+        btnBack.addEventListener('click', () => {
+            datasetView.style.display = 'none';
+            welcomeView.style.display = 'block';
+            welcomeView.style.animation = 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+        });
+
+        function escapeHtml(value) {
+            return value
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# SQLite databases & user files
+program/DB/DB/**/*.sqlite
+program/DB/files/*.txt
+!program/DB/files/sample_*.txt
+
+# PyInstaller spec files
+*.spec
