@@ -16,3 +16,6 @@ program/DB/files/*.txt
 
 # PyInstaller spec files
 *.spec
+
+*.txt
+*.ipynb
