@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TXT Line Search DB</title>
+    <title>조건부 검색기</title>
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -11,7 +12,7 @@
         <!-- Welcome View -->
         <div class="welcome-card" id="welcome-view">
             <h1 class="welcome-title">
-                TXT Line Search DB
+                조건부 검색기
                 <span class="tooltip-wrapper">
                     <span class="tooltip-icon">?</span>
                     <span class="tooltip-content">텍스트 파일(.txt, .hwp)을 줄 단위로 DB화하여, 복합 검색식(AND, OR, 괄호)으로 원하는 줄을 빠르게 찾을 수 있는 도구입니다.</span>
@@ -119,5 +120,6 @@
                 .replaceAll("'", "&#039;");
         }
     </script>
+    <script src="/static/heartbeat.js"></script>
 </body>
 </html>
