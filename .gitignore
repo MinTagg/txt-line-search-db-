@@ -19,3 +19,5 @@ program/DB/files/*.txt
 
 *.txt
 *.ipynb
+
+docs/

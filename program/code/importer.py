@@ -1,7 +1,8 @@
+import unicodedata
 from pathlib import Path
 
 def read_text_file(file_path: Path) -> str:
-    encodings = ["utf-8", "utf-8-sig", "cp949"]
+    encodings = ["utf-8-sig", "utf-8", "cp949"]
 
     last_error = None
     for enc in encodings:
@@ -20,7 +21,7 @@ def read_text_file(file_path: Path) -> str:
 
 def clean_lines(raw_text: str) -> list[str]:
     return [
-        line.strip()
+        unicodedata.normalize('NFKC', line.strip())
         for line in raw_text.splitlines()
         if line.strip()
     ]

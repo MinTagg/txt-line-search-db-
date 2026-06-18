@@ -1,3 +1,4 @@
+import unicodedata
 from dataclasses import dataclass
 
 @dataclass
@@ -149,6 +150,9 @@ def compile_to_sql(node) -> tuple[str, list[str]]:
 def parse_query_to_sql(query: str) -> tuple[str, list[str]]:
     if not query or not query.strip():
         raise ValueError("검색어가 비어 있습니다.")
+
+    # Normalize unicode to NFKC
+    query = unicodedata.normalize('NFKC', query)
 
     tokens = tokenize(query)
     parser = Parser(tokens)

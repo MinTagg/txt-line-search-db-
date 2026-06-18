@@ -47,6 +47,7 @@ body {
     height: 100vh;
     background: radial-gradient(circle at top, #1e1b4b 0%, var(--bg-primary) 70%);
     padding: 24px;
+    position: relative;
 }
 
 .welcome-card {
@@ -70,6 +71,12 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: -0.025em;
+}
+
+.welcome-title .tooltip-wrapper {
+    -webkit-text-fill-color: initial;
+    background: none;
+    -webkit-background-clip: initial;
 }
 
 .welcome-subtitle {
@@ -355,6 +362,7 @@ body {
     min-width: 300px;
     background-color: #0c0d15;
     overflow-y: auto;
+    overflow-x: hidden;
     height: 100%;
     position: relative;
 }
@@ -507,9 +515,7 @@ body {
 
 /* File Viewer Area */
 .file-viewer {
-    position: relative;
     width: 100%;
-    min-width: max-content;
     font-family: var(--font-mono);
     font-size: 14px;
     color: #e2e8f0;
@@ -518,15 +524,14 @@ body {
 }
 
 .line-wrapper {
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 28px;
     display: flex;
-    align-items: center;
-    padding: 0 40px 0 20px;
+    align-items: flex-start;
+    min-height: 28px;
+    padding: 2px 20px 2px 20px;
     border-radius: 4px;
     transition: background-color 0.25s ease;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 28px;
 }
 
 .line-number-gutter {
@@ -537,15 +542,15 @@ body {
     text-align: right;
     padding-right: 20px;
     font-size: 13px;
-    height: 28px;
     line-height: 28px;
+    flex-shrink: 0;
 }
 
 .line-content {
-    white-space: pre;
-    word-break: normal;
+    white-space: pre-wrap;
+    word-break: break-all;
     flex: 1;
-    height: 28px;
+    min-width: 0;
     line-height: 28px;
 }
 
@@ -553,6 +558,116 @@ body {
     background-color: var(--highlight-bg);
     border-left: 4px solid var(--highlight-border);
     padding-left: 16px; /* 20px - 4px to prevent horizontal shifting */
+}
+
+/* 검색어 하이라이트 (노란색) */
+.search-highlight {
+    background-color: #fbbf24;
+    color: #1a1d30;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* Tooltip */
+.tooltip-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.tooltip-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: help;
+    transition: all 0.2s ease;
+    font-family: var(--font-sans);
+}
+
+.tooltip-icon:hover {
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.tooltip-content {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    width: 300px;
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    line-height: 1.6;
+    text-align: left;
+    pointer-events: none;
+}
+
+/* 말풍선 화살표 */
+.tooltip-content::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--border-color);
+}
+
+.tooltip-wrapper:hover .tooltip-content {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+
+/* Footer */
+.site-footer {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.8;
+}
+
+.footer-line {
+    margin-bottom: 2px;
+}
+
+.site-footer a {
+    color: var(--accent-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.site-footer a:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+
+.footer-license {
+    margin-top: 6px;
+    color: #f59e0b;
+    font-weight: 500;
 }
 
 /* Custom Scrollbars */

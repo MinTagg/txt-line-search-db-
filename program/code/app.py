@@ -1,9 +1,10 @@
 import sys
+import subprocess
 import os
 import webbrowser
 from threading import Timer
 from flask import Flask, render_template, jsonify, request
-from paths import ensure_dirs, safe_dataset_name, get_txt_path, get_sqlite_path
+from paths import ensure_dirs, safe_dataset_name, get_txt_path, get_sqlite_path, FILES_DIR
 from importer import read_text_file, clean_lines, overwrite_cleaned_file, build_segments
 from db import init_db, reset_segments, insert_segments, set_meta, list_datasets, connect_db
 from search import search_segments
@@ -38,14 +39,35 @@ def upload_file():
     if not file.filename:
         return jsonify({"ok": False, "error": "Empty filename"}), 400
 
-    if not file.filename.lower().endswith(".txt"):
-        return jsonify({"ok": False, "error": "Only .txt files are allowed"}), 400
+    filename_lower = file.filename.lower()
+    if not (filename_lower.endswith(".txt") or filename_lower.endswith(".hwp")):
+        return jsonify({"ok": False, "error": ".txt 또는 .hwp 파일만 업로드할 수 있습니다."}), 400
 
     dataset_name = safe_dataset_name(file.filename)
     txt_path = get_txt_path(dataset_name)
 
-    # Save uploaded file
-    file.save(txt_path)
+    if filename_lower.endswith(".hwp"):
+        hwp_path = FILES_DIR / f"{dataset_name}.hwp"
+        file.save(hwp_path)
+
+        try:
+            result = subprocess.run(
+                ["hwp5txt", "--output", str(txt_path), str(hwp_path)],
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"hwp5txt 변환 실패: {result.stderr}")
+        except FileNotFoundError:
+            return jsonify({"ok": False, "error": "hwp5txt 명령어를 찾을 수 없습니다. pyhwp가 설치되었는지 확인하세요."}), 500
+        except subprocess.TimeoutExpired:
+            return jsonify({"ok": False, "error": "HWP 변환 시간이 초과되었습니다."}), 500
+        finally:
+            if hwp_path.exists():
+                hwp_path.unlink()
+    else:
+        file.save(txt_path)
 
     try:
         raw_text = read_text_file(txt_path)

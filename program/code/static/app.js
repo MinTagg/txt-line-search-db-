@@ -12,9 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let renderedResultsCount = 0;
     let highlightedLineNumber = null;
     let highlightTimeout = null;
-
-    const lineHeight = 28;      // matching style.css line-wrapper height
-    const bufferCount = 15;     // lines to render above and below viewport
+    let currentSearchQuery = '';
 
     const RESULTS_BATCH_SIZE = 100;
 
@@ -65,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            currentSearchQuery = query;
             renderResults(data.results, data.count, query);
         } catch (err) {
             console.error(err);
@@ -142,14 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 lines = data.lines;
                 
-                // Set total height on file-viewer to construct a native scrollbar
-                fileViewer.style.height = `${lines.length * lineHeight}px`;
-                
-                // Attach scroll event on rightPane (container)
-                rightPane.addEventListener('scroll', updateVirtualScroll);
-                
-                // Render initial viewport
-                updateVirtualScroll();
+                // 모든 줄을 일반 플로우로 렌더링
+                renderAllLines();
             } else {
                 throw new Error(data.error || '파일 내용을 로드할 수 없습니다.');
             }
@@ -161,33 +154,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Virtual scroll renderer
-    function updateVirtualScroll() {
+    // 모든 줄을 일반 플로우로 렌더링
+    function renderAllLines() {
         if (!lines || lines.length === 0) return;
 
-        const scrollTop = rightPane.scrollTop;
-        const paneHeight = rightPane.clientHeight;
-
-        // Calculate range of indices currently visible
-        let startIdx = Math.floor(scrollTop / lineHeight) - bufferCount;
-        let endIdx = Math.ceil((scrollTop + paneHeight) / lineHeight) + bufferCount;
-
-        // Bound checks
-        if (startIdx < 0) startIdx = 0;
-        if (endIdx >= lines.length) endIdx = lines.length - 1;
-
-        const visibleLines = lines.slice(startIdx, endIdx + 1);
         const fragment = document.createDocumentFragment();
 
-        visibleLines.forEach(line => {
+        lines.forEach(line => {
             const wrapper = document.createElement('div');
             wrapper.className = 'line-wrapper';
             wrapper.id = `line-${line.line_number}`;
-            wrapper.style.top = `${(line.line_number - 1) * lineHeight}px`;
-
-            if (highlightedLineNumber === line.line_number) {
-                wrapper.classList.add('highlight');
-            }
 
             wrapper.innerHTML = `
                 <div class="line-number-gutter">${line.line_number}</div>
@@ -196,9 +172,73 @@ document.addEventListener('DOMContentLoaded', () => {
             fragment.appendChild(wrapper);
         });
 
-        // Replace viewer children
         fileViewer.innerHTML = '';
         fileViewer.appendChild(fragment);
+    }
+
+    // 검색 쿼리에서 순수 텀(검색 키워드)만 추출
+    function extractSearchTerms(query) {
+        // 괄호와 & 제거
+        let cleaned = query.replace(/[()&]/g, ' ');
+        let tokens = [];
+        let i = 0;
+        while (i < cleaned.length) {
+            if (cleaned[i] === ' ') {
+                i++;
+                continue;
+            }
+            if (cleaned.startsWith('and', i)) {
+                i += 3;
+                continue;
+            }
+            if (cleaned.startsWith('or', i)) {
+                i += 2;
+                continue;
+            }
+            let start = i;
+            while (i < cleaned.length && cleaned[i] !== ' ') {
+                if (cleaned.startsWith('and', i)) break;
+                if (cleaned.startsWith('or', i)) break;
+                i++;
+            }
+            let term = cleaned.slice(start, i).trim();
+            if (term) tokens.push(term);
+        }
+        return tokens;
+    }
+
+    // 검색어 하이라이트를 적용
+    function applySearchHighlight(lineElement) {
+        if (!currentSearchQuery) return;
+
+        const contentEl = lineElement.querySelector('.line-content');
+        if (!contentEl) return;
+
+        const terms = extractSearchTerms(currentSearchQuery);
+        if (terms.length === 0) return;
+
+        if (!contentEl.dataset.originalHtml) {
+            contentEl.dataset.originalHtml = contentEl.innerHTML;
+        }
+
+        let html = contentEl.dataset.originalHtml;
+
+        terms.forEach(term => {
+            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${escapedTerm})`, 'gi');
+            html = html.replace(regex, '<mark class="search-highlight">$1</mark>');
+        });
+
+        contentEl.innerHTML = html;
+    }
+
+    // 검색어 하이라이트를 제거하고 원본 복원
+    function restoreOriginalContent(lineElement) {
+        const contentEl = lineElement.querySelector('.line-content');
+        if (!contentEl || !contentEl.dataset.originalHtml) return;
+
+        contentEl.innerHTML = contentEl.dataset.originalHtml;
+        delete contentEl.dataset.originalHtml;
     }
 
     // Scroll to specific line in document viewer
@@ -207,38 +247,28 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(highlightTimeout);
         }
 
-        // Remove old highlight element if visible in DOM
         if (highlightedLineNumber) {
             const oldTarget = document.getElementById(`line-${highlightedLineNumber}`);
             if (oldTarget) {
                 oldTarget.classList.remove('highlight');
+                restoreOriginalContent(oldTarget);
             }
         }
 
         highlightedLineNumber = lineNumber;
 
-        // Scroll view immediately using rightPane scrollTop
-        const targetScrollTop = (lineNumber - 1) * lineHeight - (rightPane.clientHeight / 2) + (lineHeight / 2);
-        
-        rightPane.scrollTo({
-            top: Math.max(0, targetScrollTop),
-            behavior: 'smooth'
-        });
-
-        // Trigger updates to guarantee visibility of the line
-        updateVirtualScroll();
-
-        // Highlight element
         const target = document.getElementById(`line-${lineNumber}`);
         if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
             target.classList.add('highlight');
+            applySearchHighlight(target);
         }
 
-        // Remove highlight after 1.5s
         highlightTimeout = setTimeout(() => {
             const target = document.getElementById(`line-${lineNumber}`);
             if (target) {
                 target.classList.remove('highlight');
+                restoreOriginalContent(target);
             }
             highlightedLineNumber = null;
         }, 1500);
