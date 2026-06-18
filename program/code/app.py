@@ -41,32 +41,14 @@ def upload_file():
     if not file.filename:
         return jsonify({"ok": False, "error": "Empty filename"}), 400
 
-    filename_lower = file.filename.lower()
-    if not (filename_lower.endswith(".txt") or filename_lower.endswith(".hwp")):
-        return jsonify({"ok": False, "error": ".txt 또는 .hwp 파일만 업로드할 수 있습니다."}), 400
+    if not file.filename.lower().endswith(".txt"):
+        return jsonify({"ok": False, "error": "텍스트(.txt) 파일만 업로드할 수 있습니다."}), 400
 
     dataset_name = safe_dataset_name(file.filename)
     txt_path = get_txt_path(dataset_name)
 
-    if filename_lower.endswith(".hwp"):
-        hwp_path = FILES_DIR / f"{dataset_name}.hwp"
-        file.save(hwp_path)
-
-        try:
-            from contextlib import closing
-            from hwp5.hwp5txt import TextTransform, Hwp5File
-
-            text_transform = TextTransform()
-            with closing(Hwp5File(str(hwp_path))) as hwp5file:
-                with open(txt_path, "wb") as dest:
-                    text_transform.transform_hwp5_to_text(hwp5file, dest)
-        except Exception as e:
-            return jsonify({"ok": False, "error": f"HWP 파일 변환에 실패했습니다: {str(e)}"}), 500
-        finally:
-            if hwp_path.exists():
-                hwp_path.unlink()
-    else:
-        file.save(txt_path)
+    # Save uploaded file
+    file.save(txt_path)
 
     try:
         raw_text = read_text_file(txt_path)
