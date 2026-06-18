@@ -1,6 +1,7 @@
 import sys
 import subprocess
 import os
+from pathlib import Path
 import webbrowser
 from threading import Timer
 from flask import Flask, render_template, jsonify, request
@@ -51,18 +52,15 @@ def upload_file():
         file.save(hwp_path)
 
         try:
-            result = subprocess.run(
-                ["hwp5txt", "--output", str(txt_path), str(hwp_path)],
-                capture_output=True,
-                text=True,
-                timeout=120
-            )
-            if result.returncode != 0:
-                raise RuntimeError(f"hwp5txt 변환 실패: {result.stderr}")
-        except FileNotFoundError:
-            return jsonify({"ok": False, "error": "hwp5txt 명령어를 찾을 수 없습니다. pyhwp가 설치되었는지 확인하세요."}), 500
-        except subprocess.TimeoutExpired:
-            return jsonify({"ok": False, "error": "HWP 변환 시간이 초과되었습니다."}), 500
+            from contextlib import closing
+            from hwp5.hwp5txt import TextTransform, Hwp5File
+
+            text_transform = TextTransform()
+            with closing(Hwp5File(str(hwp_path))) as hwp5file:
+                with open(txt_path, "wb") as dest:
+                    text_transform.transform_hwp5_to_text(hwp5file, dest)
+        except Exception as e:
+            return jsonify({"ok": False, "error": f"HWP 파일 변환에 실패했습니다: {str(e)}"}), 500
         finally:
             if hwp_path.exists():
                 hwp_path.unlink()
