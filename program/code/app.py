@@ -3,7 +3,8 @@ import subprocess
 import os
 from pathlib import Path
 import webbrowser
-from threading import Timer
+import time
+from threading import Timer, Thread
 from flask import Flask, render_template, jsonify, request
 from paths import ensure_dirs, safe_dataset_name, get_txt_path, get_sqlite_path, FILES_DIR
 from importer import read_text_file, clean_lines, overwrite_cleaned_file, build_segments
@@ -161,12 +162,38 @@ def api_file(dataset_name):
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+last_heartbeat_time = time.time()
+first_heartbeat_received = False
+
+def heartbeat_watchdog():
+    global last_heartbeat_time, first_heartbeat_received
+    # Grace period of 25 seconds for the browser to launch and load
+    time.sleep(25)
+    while True:
+        time.sleep(2)
+        now = time.time()
+        if first_heartbeat_received:
+            if now - last_heartbeat_time > 10:
+                os._exit(0)
+        else:
+            if now - last_heartbeat_time > 35:
+                os._exit(0)
+
+@app.post("/api/heartbeat")
+def heartbeat_route():
+    global last_heartbeat_time, first_heartbeat_received
+    last_heartbeat_time = time.time()
+    first_heartbeat_received = True
+    return jsonify({"ok": True})
+
 def open_browser():
     webbrowser.open_new("http://127.0.0.1:5000/")
 
 if __name__ == "__main__":
     if getattr(sys, 'frozen', False):
         # Package execution mode: run without debug, auto open browser
+        watchdog = Thread(target=heartbeat_watchdog, daemon=True)
+        watchdog.start()
         Timer(1.0, open_browser).start()
         app.run(host="127.0.0.1", port=5000, debug=False)
     else:
