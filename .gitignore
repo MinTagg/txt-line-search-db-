@@ -21,3 +21,4 @@ program/DB/files/*.txt
 *.ipynb
 
 docs/
+lab/
