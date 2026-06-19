@@ -154,47 +154,183 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 모든 줄을 일반 플로우로 렌더링
+    // ── Virtual Scroll Engine (variable-height aware) ──
+    const INITIAL_LINE_HEIGHT = 28;
+    const OVERSCAN = 30;
+    let lastRenderedStart = -1;
+    let lastRenderedEnd = -1;
+    let virtualScrollHandler = null;
+    let topSpacer = null;
+    let bottomSpacer = null;
+
+    // Height measurement cache
+    const heightCache = [];                    // actual measured height per line index
+    let dynamicEstimate = INITIAL_LINE_HEIGHT;  // running average of measured heights
+    let measuredCount = 0;
+    let measuredSum = 0;
+
+    function getHeight(idx) {
+        return heightCache[idx] !== undefined ? heightCache[idx] : dynamicEstimate;
+    }
+
+    // Cumulative offset from top for a given line index
+    function getOffsetTop(endIdx) {
+        let sum = 0;
+        for (let i = 0; i < endIdx; i++) sum += getHeight(i);
+        return sum;
+    }
+
+    // Total height of lines after endIdx (for bottom spacer)
+    function getOffsetBottom(startIdx) {
+        let sum = 0;
+        for (let i = startIdx + 1; i < lines.length; i++) sum += getHeight(i);
+        return sum;
+    }
+
+    // Find which line index sits at a given pixel offset
+    function getIndexAtOffset(offset) {
+        let accum = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const h = getHeight(i);
+            if (accum + h > offset) return i;
+            accum += h;
+        }
+        return lines.length - 1;
+    }
+
+    // ── Virtual Scroll: setup ──
     function renderAllLines() {
         if (!lines || lines.length === 0) return;
 
-        const fragment = document.createDocumentFragment();
+        if (virtualScrollHandler) {
+            rightPane.removeEventListener('scroll', virtualScrollHandler);
+        }
 
-        lines.forEach(line => {
+        fileViewer.innerHTML = '';
+
+        // Reset height cache
+        heightCache.length = 0;
+        dynamicEstimate = INITIAL_LINE_HEIGHT;
+        measuredCount = 0;
+        measuredSum = 0;
+
+        topSpacer = document.createElement('div');
+        topSpacer.id = 'vs-top-spacer';
+        bottomSpacer = document.createElement('div');
+        bottomSpacer.id = 'vs-bottom-spacer';
+
+        fileViewer.appendChild(topSpacer);
+        fileViewer.appendChild(bottomSpacer);
+
+        lastRenderedStart = -1;
+        lastRenderedEnd = -1;
+
+        virtualScrollHandler = () => {
+            requestAnimationFrame(renderVisibleLines);
+        };
+        rightPane.addEventListener('scroll', virtualScrollHandler, { passive: true });
+
+        // Invalidate height cache when container width changes (text reflows)
+        const resizeObserver = new ResizeObserver(() => {
+            heightCache.length = 0;
+            measuredCount = 0;
+            measuredSum = 0;
+            dynamicEstimate = INITIAL_LINE_HEIGHT;
+            lastRenderedStart = -1;
+            lastRenderedEnd = -1;
+            renderVisibleLines();
+        });
+        resizeObserver.observe(rightPane);
+
+        renderVisibleLines();
+    }
+
+    // ── Virtual Scroll: render only the visible window ──
+    function renderVisibleLines() {
+        const scrollTop = rightPane.scrollTop;
+        const viewportHeight = rightPane.clientHeight;
+
+        let startIdx = Math.max(0, getIndexAtOffset(scrollTop) - OVERSCAN);
+        let endIdx = Math.min(lines.length - 1, getIndexAtOffset(scrollTop + viewportHeight) + OVERSCAN);
+
+        if (startIdx === lastRenderedStart && endIdx === lastRenderedEnd) return;
+        lastRenderedStart = startIdx;
+        lastRenderedEnd = endIdx;
+
+        // Remove old line elements (between the two spacers)
+        while (topSpacer.nextSibling && topSpacer.nextSibling !== bottomSpacer) {
+            fileViewer.removeChild(topSpacer.nextSibling);
+        }
+
+        // Update spacer heights
+        topSpacer.style.height = getOffsetTop(startIdx) + 'px';
+        bottomSpacer.style.height = getOffsetBottom(endIdx) + 'px';
+
+        // Build visible lines
+        const fragment = document.createDocumentFragment();
+        for (let i = startIdx; i <= endIdx; i++) {
+            const line = lines[i];
             const wrapper = document.createElement('div');
             wrapper.className = 'line-wrapper';
             wrapper.id = `line-${line.line_number}`;
 
+            const isHighlighted = (line.line_number === highlightedLineNumber);
+            if (isHighlighted) wrapper.classList.add('highlight');
+
+            let contentHtml = escapeHtml(line.text);
+
+            if (isHighlighted && currentSearchQuery) {
+                const terms = extractSearchTerms(currentSearchQuery);
+                terms.forEach(term => {
+                    const esc = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(`(${esc})`, 'gi');
+                    contentHtml = contentHtml.replace(regex, '<mark class="search-highlight">$1</mark>');
+                });
+            }
+
             wrapper.innerHTML = `
                 <div class="line-number-gutter">${line.line_number}</div>
-                <div class="line-content">${escapeHtml(line.text)}</div>
+                <div class="line-content">${contentHtml}</div>
             `;
             fragment.appendChild(wrapper);
-        });
+        }
 
-        fileViewer.innerHTML = '';
-        fileViewer.appendChild(fragment);
+        fileViewer.insertBefore(fragment, bottomSpacer);
+
+        // Measure actual heights of rendered lines and update cache
+        measureRenderedHeights();
     }
 
-    // 검색 쿼리에서 순수 텀(검색 키워드)만 추출
+    // ── Measure rendered DOM elements and cache their heights ──
+    function measureRenderedHeights() {
+        let node = topSpacer.nextSibling;
+        let idx = lastRenderedStart;
+        while (node && node !== bottomSpacer) {
+            const h = node.offsetHeight;
+            if (h > 0) {
+                if (heightCache[idx] === undefined) {
+                    measuredCount++;
+                    measuredSum += h;
+                } else {
+                    measuredSum += (h - heightCache[idx]);
+                }
+                heightCache[idx] = h;
+                dynamicEstimate = measuredSum / measuredCount;
+            }
+            idx++;
+            node = node.nextSibling;
+        }
+    }
+
+    // ── Search term extractor ──
     function extractSearchTerms(query) {
-        // 괄호와 & 제거
         let cleaned = query.replace(/[()&]/g, ' ');
         let tokens = [];
         let i = 0;
         while (i < cleaned.length) {
-            if (cleaned[i] === ' ') {
-                i++;
-                continue;
-            }
-            if (cleaned.startsWith('and', i)) {
-                i += 3;
-                continue;
-            }
-            if (cleaned.startsWith('or', i)) {
-                i += 2;
-                continue;
-            }
+            if (cleaned[i] === ' ') { i++; continue; }
+            if (cleaned.startsWith('and', i)) { i += 3; continue; }
+            if (cleaned.startsWith('or', i)) { i += 2; continue; }
             let start = i;
             while (i < cleaned.length && cleaned[i] !== ' ') {
                 if (cleaned.startsWith('and', i)) break;
@@ -207,71 +343,64 @@ document.addEventListener('DOMContentLoaded', () => {
         return tokens;
     }
 
-    // 검색어 하이라이트를 적용
-    function applySearchHighlight(lineElement) {
-        if (!currentSearchQuery) return;
+    // ── Scroll to specific line (auto-convergence) ──
+    let convergenceTimer = null;
 
-        const contentEl = lineElement.querySelector('.line-content');
-        if (!contentEl) return;
-
-        const terms = extractSearchTerms(currentSearchQuery);
-        if (terms.length === 0) return;
-
-        if (!contentEl.dataset.originalHtml) {
-            contentEl.dataset.originalHtml = contentEl.innerHTML;
-        }
-
-        let html = contentEl.dataset.originalHtml;
-
-        terms.forEach(term => {
-            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(${escapedTerm})`, 'gi');
-            html = html.replace(regex, '<mark class="search-highlight">$1</mark>');
-        });
-
-        contentEl.innerHTML = html;
-    }
-
-    // 검색어 하이라이트를 제거하고 원본 복원
-    function restoreOriginalContent(lineElement) {
-        const contentEl = lineElement.querySelector('.line-content');
-        if (!contentEl || !contentEl.dataset.originalHtml) return;
-
-        contentEl.innerHTML = contentEl.dataset.originalHtml;
-        delete contentEl.dataset.originalHtml;
-    }
-
-    // Scroll to specific line in document viewer
     function scrollToLine(lineNumber) {
-        if (highlightTimeout) {
-            clearTimeout(highlightTimeout);
-        }
-
-        if (highlightedLineNumber) {
-            const oldTarget = document.getElementById(`line-${highlightedLineNumber}`);
-            if (oldTarget) {
-                oldTarget.classList.remove('highlight');
-                restoreOriginalContent(oldTarget);
-            }
-        }
+        if (highlightTimeout) clearTimeout(highlightTimeout);
+        if (convergenceTimer) clearTimeout(convergenceTimer);
 
         highlightedLineNumber = lineNumber;
 
-        const target = document.getElementById(`line-${lineNumber}`);
-        if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            target.classList.add('highlight');
-            applySearchHighlight(target);
+        const lineIndex = lineNumber - 1;
+        if (lineIndex < 0 || lineIndex >= lines.length) return;
+
+        const MAX_ITERATIONS = 5;
+        const TOLERANCE_PX = 10;
+        let iteration = 0;
+
+        function converge() {
+            const targetTop = getOffsetTop(lineIndex);
+            const viewportHeight = rightPane.clientHeight;
+            const scrollTarget = Math.max(0, targetTop - viewportHeight / 2 + getHeight(lineIndex) / 2);
+
+            const currentError = Math.abs(rightPane.scrollTop - scrollTarget);
+
+            if (iteration > 0 && currentError < TOLERANCE_PX) {
+                // Converged — done
+                startHighlightTimer();
+                return;
+            }
+
+            if (iteration >= MAX_ITERATIONS) {
+                // Max attempts — stop
+                startHighlightTimer();
+                return;
+            }
+
+            iteration++;
+
+            // Force re-render at the new position
+            lastRenderedStart = -1;
+            lastRenderedEnd = -1;
+
+            rightPane.scrollTo({ top: scrollTarget, behavior: iteration === 1 ? 'smooth' : 'instant' });
+            renderVisibleLines();
+
+            // Wait for render + measurement, then check again
+            convergenceTimer = setTimeout(converge, 150);
         }
 
-        highlightTimeout = setTimeout(() => {
-            const target = document.getElementById(`line-${lineNumber}`);
-            if (target) {
-                target.classList.remove('highlight');
-                restoreOriginalContent(target);
-            }
-            highlightedLineNumber = null;
-        }, 1500);
+        function startHighlightTimer() {
+            highlightTimeout = setTimeout(() => {
+                highlightedLineNumber = null;
+                lastRenderedStart = -1;
+                lastRenderedEnd = -1;
+                renderVisibleLines();
+            }, 1500);
+        }
+
+        converge();
     }
 
     // Drag-to-resize split panes
