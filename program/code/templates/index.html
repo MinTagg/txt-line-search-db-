@@ -15,16 +15,19 @@
                 조건부 검색기
                 <span class="tooltip-wrapper">
                     <span class="tooltip-icon">?</span>
-                    <span class="tooltip-content">텍스트 파일(.txt)을 줄 단위로 DB화하여, 복합 검색식(AND, OR, 괄호)으로 원하는 줄을 빠르게 찾을 수 있는 도구입니다.</span>
+                    <span class="tooltip-content">텍스트 파일(.txt) 및 한글 파일(.hwp)을 줄 단위로 DB화하여, 복합 검색식(AND, OR, 괄호)으로 원하는 줄을 빠르게 찾을 수 있는 도구입니다.</span>
                 </span>
             </h1>
-            <p class="welcome-subtitle">텍스트 파일을 줄 단위로 저장하고 복잡한 검색식으로 한눈에 탐색하세요.</p>
+            <p class="welcome-subtitle">텍스트/한글 파일을 줄 단위로 저장하고 복잡한 검색식으로 한눈에 탐색하세요.</p>
             <div class="button-group">
                 <a href="/upload" class="btn btn-primary">
                     <span>새 데이터 업로드</span>
                 </a>
                 <button type="button" class="btn btn-secondary" id="btn-existing">
                     <span>기존 데이터 이용</span>
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-copyright">
+                    <span>저작권 정보</span>
                 </button>
             </div>
         </div>
@@ -53,9 +56,34 @@
             <div class="footer-line">
                 GitHub: <a href="https://github.com/MinTagg" target="_blank" rel="noopener noreferrer">github.com/MinTagg</a>
             </div>
-            <div class="footer-line footer-license">This project is licensed for personal and research use only. Commercial use is not permitted without prior written permission.</div>
-            <div class="footer-line footer-meta">Ver: 1.0.0 &nbsp;|&nbsp; 만든 날짜: 2026.06.18</div>
+            <div class="footer-line footer-meta">Ver: 1.1.0 &nbsp;|&nbsp; 최종 수정일: 2026.06.20</div>
         </footer>
+    </div>
+
+    <!-- License Modal -->
+    <div class="modal-overlay" id="copyright-modal">
+        <div class="modal-content">
+            <button type="button" class="modal-close" id="modal-close-btn">&times;</button>
+            <div class="license-body">
+                <h1>License</h1>
+                <p>Copyright (c) 2026 오민택</p>
+                <p>본 저작물의 저작권은 오민택에게 있습니다.</p>
+                
+                <h2>허용되는 사용</h2>
+                <p>본 저작물은 비상업적 목적에 한하여 자유롭게 사용할 수 있습니다.</p>
+                <p>다음 행위는 비상업적 목적에 한하여 허용됩니다.</p>
+                <ul>
+                    <li>학술 연구</li>
+                </ul>
+                
+                <h2>저작자 표시 의무</h2>
+                <p>본 저작물의 전체 또는 일부를 다른 곳에서 사용하거나 배포하는 경우, 반드시 원 저작자인 오민택을 명확히 표시해야 합니다.</p>
+                <p>저작자 표시는 다음과 같은 형태를 권장합니다.</p>
+                <blockquote>
+                    Original work by 오민택
+                </blockquote>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -119,7 +147,28 @@
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#039;");
         }
+
+        // License Modal handlers
+        const btnCopyright = document.getElementById('btn-copyright');
+        const copyrightModal = document.getElementById('copyright-modal');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+
+        btnCopyright.addEventListener('click', () => {
+            copyrightModal.classList.add('active');
+        });
+
+        modalCloseBtn.addEventListener('click', () => {
+            copyrightModal.classList.remove('active');
+        });
+
+        copyrightModal.addEventListener('click', (e) => {
+            if (e.target === copyrightModal) {
+                copyrightModal.classList.remove('active');
+            }
+        });
     </script>
+
+
     <script src="/static/heartbeat.js"></script>
 </body>
 </html>

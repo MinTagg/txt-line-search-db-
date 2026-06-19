@@ -7,7 +7,7 @@ import time
 from threading import Timer, Thread
 from flask import Flask, render_template, jsonify, request
 from paths import ensure_dirs, safe_dataset_name, get_txt_path, get_sqlite_path, FILES_DIR
-from importer import read_text_file, clean_lines, overwrite_cleaned_file, build_segments
+from importer import read_text_file, clean_lines, overwrite_cleaned_file, build_segments, get_hwp_text
 from db import init_db, reset_segments, insert_segments, set_meta, list_datasets, connect_db
 from search import search_segments
 
@@ -41,20 +41,39 @@ def upload_file():
     if not file.filename:
         return jsonify({"ok": False, "error": "Empty filename"}), 400
 
-    if not file.filename.lower().endswith(".txt"):
-        return jsonify({"ok": False, "error": "텍스트(.txt) 파일만 업로드할 수 있습니다."}), 400
+    filename_lower = file.filename.lower()
+    if not (filename_lower.endswith(".txt") or filename_lower.endswith(".hwp")):
+        return jsonify({"ok": False, "error": "텍스트(.txt) 또는 한글(.hwp) 파일만 업로드할 수 있습니다."}), 400
 
     dataset_name = safe_dataset_name(file.filename)
     txt_path = get_txt_path(dataset_name)
 
-    # Save uploaded file
-    file.save(txt_path)
+    is_hwp = filename_lower.endswith(".hwp")
+    hwp_path = None
 
     try:
+        if is_hwp:
+            hwp_path = FILES_DIR / f"{dataset_name}.hwp"
+            file.save(hwp_path)
+            try:
+                raw_text = get_hwp_text(hwp_path)
+            except Exception as e:
+                if hwp_path.exists():
+                    hwp_path.unlink()
+                return jsonify({"ok": False, "error": f"한글 파일 처리 중 오류 발생: {str(e)}"}), 500
+            
+            txt_path.write_text(raw_text, encoding="utf-8")
+        else:
+            file.save(txt_path)
+
         raw_text = read_text_file(txt_path)
         lines = clean_lines(raw_text)
         
         if not lines:
+            if is_hwp and hwp_path and hwp_path.exists():
+                hwp_path.unlink()
+            if txt_path.exists():
+                txt_path.unlink()
             return jsonify({"ok": False, "error": "No valid lines found"}), 400
             
         overwrite_cleaned_file(txt_path, lines)
@@ -67,7 +86,7 @@ def upload_file():
 
         # Store metadata
         set_meta(dataset_name, "dataset_name", dataset_name)
-        set_meta(dataset_name, "file_name", f"{dataset_name}.txt")
+        set_meta(dataset_name, "file_name", file.filename)
         set_meta(dataset_name, "file_path", str(txt_path))
         set_meta(dataset_name, "line_count", str(len(lines)))
 
@@ -77,6 +96,8 @@ def upload_file():
             "line_count": len(lines)
         })
     except Exception as e:
+        if is_hwp and hwp_path and hwp_path.exists():
+            hwp_path.unlink()
         return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route("/api/datasets")

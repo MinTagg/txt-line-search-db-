@@ -13,16 +13,16 @@
             <!-- Initial View -->
             <div id="upload-form-view">
                 <h2 class="card-title">
-                    새 텍스트 파일 업로드
+                    새 파일 업로드
                     <span class="tooltip-wrapper">
                         <span class="tooltip-icon">?</span>
-                        <span class="tooltip-content">.txt 파일을 업로드하면 자동으로 줄 단위 데이터베이스로 변환됩니다. 최대 20MB까지 지원합니다.</span>
+                        <span class="tooltip-content">.txt 또는 .hwp 파일을 업로드하면 자동으로 줄 단위 데이터베이스로 변환됩니다. 최대 20MB까지 지원합니다.</span>
                     </span>
                 </h2>
                 <div class="drop-zone" id="drop-zone">
                     <span class="drop-zone-icon">📁</span>
-                    <p class="drop-zone-text">여기에 txt 파일을 드래그 앤 드롭하거나 클릭하여 파일을 선택하세요.</p>
-                    <input type="file" id="file-input" class="file-input" accept=".txt">
+                    <p class="drop-zone-text">여기에 txt 또는 hwp 파일을 드래그 앤 드롭하거나 클릭하여 파일을 선택하세요.</p>
+                    <input type="file" id="file-input" class="file-input" accept=".txt,.hwp">
                     <div id="file-info" class="file-info"></div>
                 </div>
                 <div class="button-group">
@@ -90,8 +90,9 @@
         });
 
         function handleFileSelect(file) {
-            if (!file.name.toLowerCase().endsWith('.txt')) {
-                alert('텍스트(.txt) 파일만 업로드할 수 있습니다.');
+            const ext = file.name.toLowerCase();
+            if (!ext.endsWith('.txt') && !ext.endsWith('.hwp')) {
+                alert('텍스트(.txt) 또는 한글(.hwp) 파일만 업로드할 수 있습니다.');
                 return;
             }
             
