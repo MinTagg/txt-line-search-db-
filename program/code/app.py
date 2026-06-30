@@ -165,28 +165,58 @@ def api_file(dataset_name):
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-last_heartbeat_time = time.time()
+clients = {}
+startup_time = time.time()
 first_heartbeat_received = False
+no_clients_since = None
 
 def heartbeat_watchdog():
-    global last_heartbeat_time, first_heartbeat_received
+    global first_heartbeat_received, no_clients_since
     # Grace period of 25 seconds for the browser to launch and load
     time.sleep(25)
     while True:
         time.sleep(2)
         now = time.time()
-        if first_heartbeat_received:
-            if now - last_heartbeat_time > 10:
+        
+        if not first_heartbeat_received:
+            if now - startup_time > 35:
+                os._exit(0)
+            continue
+            
+        active_clients = 0
+        for cid, info in list(clients.items()):
+            if info["state"] == "visible" and now - info["last_seen"] > 15:
+                del clients[cid]
+            elif info["state"] == "hidden" and now - info["last_seen"] > 86400: # 24 hours
+                del clients[cid]
+            elif info["state"] == "closed" and now - info["last_seen"] > 10: # 10초(종료 후보) 유예 후 삭제
+                del clients[cid]
+            else:
+                active_clients += 1
+                
+        if active_clients == 0:
+            if no_clients_since is None:
+                no_clients_since = now
+            elif now - no_clients_since > 3:
                 os._exit(0)
         else:
-            if now - last_heartbeat_time > 35:
-                os._exit(0)
+            no_clients_since = None
 
 @app.post("/api/heartbeat")
 def heartbeat_route():
-    global last_heartbeat_time, first_heartbeat_received
-    last_heartbeat_time = time.time()
-    first_heartbeat_received = True
+    global first_heartbeat_received
+    data = request.get_json(silent=True) or {}
+    client_id = data.get("client_id", "default")
+    state = data.get("state", "visible")
+    
+    clients[client_id] = {
+        "last_seen": time.time(),
+        "state": state
+    }
+    
+    if state != "closed":
+        first_heartbeat_received = True
+        
     return jsonify({"ok": True})
 
 def open_browser():

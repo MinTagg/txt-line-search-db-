@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
     <div class="welcome-container">
         <!-- Welcome View -->
@@ -15,7 +17,8 @@
                 조건부 검색기
                 <span class="tooltip-wrapper">
                     <span class="tooltip-icon">?</span>
-                    <span class="tooltip-content">텍스트 파일(.txt) 및 한글 파일(.hwp)을 줄 단위로 DB화하여, 복합 검색식(AND, OR, 괄호)으로 원하는 줄을 빠르게 찾을 수 있는 도구입니다.</span>
+                    <span class="tooltip-content">텍스트 파일(.txt) 및 한글 파일(.hwp)을 줄 단위로 DB화하여, 복합 검색식(AND, OR, 괄호)으로 원하는 줄을
+                        빠르게 찾을 수 있는 도구입니다.</span>
                 </span>
             </h1>
             <p class="welcome-subtitle">텍스트/한글 파일을 줄 단위로 저장하고 복잡한 검색식으로 한눈에 탐색하세요.</p>
@@ -54,9 +57,10 @@
                 이메일: <a href="mailto:ohht10004@gmail.com">ohht10004@gmail.com</a>
             </div>
             <div class="footer-line">
-                GitHub: <a href="https://github.com/MinTagg" target="_blank" rel="noopener noreferrer">github.com/MinTagg</a>
+                GitHub: <a href="https://github.com/MinTagg" target="_blank"
+                    rel="noopener noreferrer">github.com/MinTagg</a>
             </div>
-            <div class="footer-line footer-meta">Ver: 1.1.0 &nbsp;|&nbsp; 최종 수정일: 2026.06.20</div>
+            <div class="footer-line footer-meta">Ver: 1.2.0 &nbsp;|&nbsp; 최종 수정일: 2026.06.30</div>
         </footer>
     </div>
 
@@ -68,14 +72,14 @@
                 <h1>License</h1>
                 <p>Copyright (c) 2026 오민택</p>
                 <p>본 저작물의 저작권은 오민택에게 있습니다.</p>
-                
+
                 <h2>허용되는 사용</h2>
                 <p>본 저작물은 비상업적 목적에 한하여 자유롭게 사용할 수 있습니다.</p>
                 <p>다음 행위는 비상업적 목적에 한하여 허용됩니다.</p>
                 <ul>
                     <li>학술 연구</li>
                 </ul>
-                
+
                 <h2>저작자 표시 의무</h2>
                 <p>본 저작물의 전체 또는 일부를 다른 곳에서 사용하거나 배포하는 경우, 반드시 원 저작자인 오민택을 명확히 표시해야 합니다.</p>
                 <p>저작자 표시는 다음과 같은 형태를 권장합니다.</p>
@@ -107,7 +111,7 @@
             try {
                 const response = await fetch('/api/datasets');
                 const data = await response.json();
-                
+
                 datasetSpinner.style.display = 'none';
 
                 if (data.ok && data.datasets && data.datasets.length > 0) {
@@ -171,4 +175,5 @@
 
     <script src="/static/heartbeat.js"></script>
 </body>
+
 </html>
